@@ -17,7 +17,7 @@ RUN echo 'server { \
     \
     # Enable gzip compression \
     gzip on; \
-    gzip_types text/html text/css application/javascript; \
+    gzip_types text/css application/javascript; \
     \
     # Security headers \
     add_header X-Frame-Options "SAMEORIGIN" always; \

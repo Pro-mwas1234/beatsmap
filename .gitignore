@@ -1,99 +1,66 @@
 ```
+# Docker-related
+.dockerenv
+Dockerfile.*
+
 # Dependencies
 node_modules/
+.venv/
+venv/
+__pycache__/
+*.egg-info/
+dist-packages/
 
-# Logs and temp files
+# Build artifacts
+build/
+dist/
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.dylib
+*.dll
+*.exe
+*.o
+*.obj
+*.a
+*.lib
+
+# Logs
 *.log
-*.tmp
+*.out
 
 # Environment
 .env
 .env.local
 .env.*
+.envrc
 
 # Editors
 .vscode/
 .idea/
+*.swp
+*.swo
+*.tmp
 
-# Build artifacts
-dist/
-build/
-target/
-*.o
-*.obj
-*.out
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+.coverage
+coverage/
+htmlcov/
 
 # Python
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
 *.pyc
 *.pyo
 *.pyd
-.Python
-*.so
-.coverage
-htmlcov/
-.coverage.*
 .pytest_cache/
 .mypy_cache/
-
-# Java
-*.class
-*.jar
-*.war
-*.ear
-hs_err_pid*
-.recommenders
-
-# C/C++
-*.a
-*.lib
-*.obj
-*.o
-*.so
-*.dll
-*.dylib
-*.exe
-*.out
-*.ilk
-*.pdb
-*.suo
-*.user
-*.userosscache
-*.sln.docstates
-
-# Compression
-*.zip
-*.gz
-*.tar
-*.tgz
-*.bz2
-*.xz
-*.7z
-*.rar
-*.zst
-*.lz4
-*.lzh
-*.cab
-*.arj
-*.rpm
-*.deb
-*.Z
-*.lz
-*.lzo
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.tar.zst
-
-# System files
-.DS_Store
-Thumbs.db
-ehthumbs.db
-Icon?
-.directory
-.Trashes
-*.nib
-.vagrant/
-.svn/
-CVS/
 ```
