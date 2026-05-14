@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BeatMaps - Rhythmic GPS Navigation</title>
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css">
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .controls-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+        }
+
+        .controls-overlay > * {
+            pointer-events: auto;
+        }
+
+        /* Header with music player */
+        .header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(180deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.7) 70%, transparent 100%);
+            padding: 20px;
+            z-index: 1000;
+        }
+
+        .music-player {
+            background: rgba(20, 20, 30, 0.95);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid rgba(138, 43, 226, 0.3);
+        }
+
+        .music-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .music-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .track-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .track-artist {
+            font-size: 13px;
+            color: #aaa;
+            margin-top: 2px;
+        }
+
+        .beat-indicator {
+            width: 12px;
+            height: 12px;
+            background: #8a2be2;
+            border-radius: 50%;
+            animation: pulse 0.6s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.6; }
+            50% { transform: scale(1.4); opacity: 1; }
+        }
+
+        .bpm-display {
+            font-size: 13px;
+            color: #8a2be2;
+            font-weight: 600;
+        }
+
+        /* Search bar */
+        .search-container {
+            display: flex;
+            gap: 8px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 16px 20px;
+            background: rgba(30, 30, 40, 0.95);
+            border: 2px solid rgba(138, 43, 226, 0.4);
+            border-radius: 12px;
+            color: #fff;
+            font-size: 16px;
+            outline: none;
+        }
+
+        .search-input:focus {
+            border-color: #8a2be2;
+        }
+
+        .btn {
+            padding: 16px 24px;
+            background: #8a2be2;
+            border: none;
+            border-radius: 12px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-height: 56px;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+            background: #7020c0;
+        }
+
+        .btn-secondary {
+            background: rgba(30, 30, 40, 0.95);
+            border: 2px solid rgba(138, 43, 226, 0.4);
+        }
+
+        /* Navigation instruction */
+        .nav-instruction {
+            position: absolute;
+            bottom: 200px;
+            left: 20px;
+            right: 20px;
+            background: rgba(20, 20, 30, 0.98);
+            border: 2px solid #8a2be2;
+            border-radius: 20px;
+            padding: 24px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .nav-instruction.active {
+            display: block;
+        }
+
+        .instruction-icon {
+            font-size: 48px;
+            text-align: center;
+            margin-bottom: 12px;
+        }
+
+        .instruction-text {
+            font-size: 24px;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .instruction-distance {
+            font-size: 18px;
+            color: #8a2be2;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        /* Bottom controls */
+        .bottom-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(0deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.7) 70%, transparent 100%);
+            padding: 20px;
+            z-index: 1000;
+        }
+
+        .control-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .control-btn {
+            padding: 20px;
+            background: rgba(30, 30, 40, 0.95);
+            border: 2px solid rgba(138, 43, 226, 0.4);
+            border-radius: 12px;
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .control-btn:active {
+            transform: scale(0.95);
+            border-color: #8a2be2;
+        }
+
+        .control-btn .icon {
+            font-size: 24px;
+            margin-bottom: 4px;
+        }
+
+        /* Route options */
+        .route-options {
+            position: absolute;
+            top: 180px;
+            left: 20px;
+            right: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+            z-index: 1000;
+        }
+
+        .route-options.active {
+            display: block;
+        }
+
+        .route-option {
+            background: rgba(20, 20, 30, 0.98);
+            border: 2px solid rgba(138, 43, 226, 0.4);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+
+        .route-option:active {
+            border-color: #8a2be2;
+        }
+
+        .route-option.selected {
+            border-color: #8a2be2;
+            background: rgba(138, 43, 226, 0.2);
+        }
+
+        .route-duration {
+            font-size: 18px;
+            font-weight: 600;
+            color: #8a2be2;
+        }
+
+        .route-distance {
+            font-size: 14px;
+            color: #aaa;
+            margin-top: 4px;
+        }
+
+        /* File input hidden */
+        #musicFile {
+            display: none;
+        }
+
+        /* Search results */
+        .search-results {
+            position: absolute;
+            top: 180px;
+            left: 20px;
+            right: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            background: rgba(20, 20, 30, 0.98);
+            border-radius: 12px;
+            display: none;
+            z-index: 1000;
+        }
+
+        .search-results.active {
+            display: block;
+        }
+
+        .search-result {
+            padding: 16px;
+            border-bottom: 1px solid rgba(138, 43, 226, 0.2);
+            cursor: pointer;
+        }
+
+        .search-result:hover {
+            background: rgba(138, 43, 226, 0.1);
+        }
+
+        .search-result:last-child {
+            border-bottom: none;
+        }
+
+        .result-name {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .result-address {
+            font-size: 13px;
+            color: #aaa;
+            margin-top: 4px;
+        }
+
+        /* Loading indicator */
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 2000;
+            display: none;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(138, 43, 226, 0.3);
+            border-top-color: #8a2be2;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Nearby panel */
+        .nearby-panel {
+            position: absolute;
+            top: 180px;
+            left: 20px;
+            right: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            background: rgba(20, 20, 30, 0.98);
+            border-radius: 12px;
+            display: none;
+            z-index: 1000;
+            padding: 16px;
+        }
+
+        .nearby-panel.active {
+            display: block;
+        }
+
+        .nearby-category {
+            margin-bottom: 20px;
+        }
+
+        .category-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #8a2be2;
+        }
+
+        .nearby-item {
+            padding: 12px;
+            background: rgba(30, 30, 40, 0.8);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+
+        .nearby-item:active {
+            background: rgba(138, 43, 226, 0.2);
+        }
+
+        .nearby-name {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .nearby-distance {
+            font-size: 12px;
+            color: #aaa;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <div class="controls-overlay">
+        <!-- Header -->
+        <div class="header">
+            <!-- Music Player -->
+            <div class="music-player">
+                <div class="music-controls">
+                    <div class="beat-indicator"></div>
+                    <div class="music-info">
+                        <div class="track-name" id="trackName">No music loaded</div>
+                        <div class="track-artist" id="trackArtist">Tap to load music</div>
+                    </div>
+                    <div class="bpm-display" id="bpmDisplay">--</div>
+                </div>
+            </div>
+
+            <!-- Search -->
+            <div class="search-container">
+                <input type="text" class="search-input" id="searchInput" placeholder="Search destination...">
+                <button class="btn btn-secondary" onclick="searchLocation()">🔍</button>
+            </div>
+
+            <!-- Search Results -->
+            <div class="search-results" id="searchResults"></div>
+        </div>
+
+        <!-- Navigation Instruction -->
+        <div class="nav-instruction" id="navInstruction">
+            <div class="instruction-icon" id="instructionIcon">➡️</div>
+            <div class="instruction-text" id="instructionText">Turn right</div>
+            <div class="instruction-distance" id="instructionDistance">in 500m</div>
+        </div>
+
+        <!-- Route Options -->
+        <div class="route-options" id="routeOptions"></div>
+
+        <!-- Nearby Panel -->
+        <div class="nearby-panel" id="nearbyPanel"></div>
+
+        <!-- Bottom Controls -->
+        <div class="bottom-controls">
+            <div class="control-row">
+                <button class="control-btn" onclick="document.getElementById('musicFile').click()">
+                    <div class="icon">🎵</div>
+                    <div>Load Music</div>
+                </button>
+                <button class="control-btn" onclick="centerOnUser()">
+                    <div class="icon">📍</div>
+                    <div>Center</div>
+                </button>
+                <button class="control-btn" onclick="toggleNearby()">
+                    <div class="icon">⛽</div>
+                    <div>Nearby</div>
+                </button>
+            </div>
+            <button class="btn" style="width: 100%;" onclick="startNavigation()">Start Navigation</button>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div style="margin-top: 16px; color: #8a2be2; font-weight: 600;">Loading...</div>
+    </div>
+
+    <!-- Hidden file input -->
+    <input type="file" id="musicFile" accept="audio/*" onchange="loadMusic(event)">
+
+    <script>
+        // State
+        let map;
+        let userLocation = null;
+        let destinationLocation = null;
+        let currentRoute = null;
+        let currentStepIndex = 0;
+        let audioContext = null;
+        let audioSource = null;
+        let analyser = null;
+        let bpm = 120;
+        let beatInterval = null;
+        let navigationActive = false;
+        let audioElement = null;
+
+        // Initialize map
+        function initMap() {
+            map = new maplibregl.Map({
+                container: 'map',
+                style: 'https://tiles.openfreemap.org/styles/liberty',
+                center: [0, 0],
+                zoom: 2
+            });
+
+            map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+            // Get user location
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        userLocation = [position.coords.longitude, position.coords.latitude];
+                        map.setCenter(userLocation);
+                        map.setZoom(14);
+                        addUserMarker();
+                    },
+                    (error) => {
+                        console.error('Geolocation error:', error);
+                        // Default to a location if geolocation fails
+                        userLocation = [36.8219, -1.2921]; // Nairobi
+                        map.setCenter(userLocation);
+                        map.setZoom(12);
+                        addUserMarker();
+                    }
+                );
+
+                // Watch position for navigation
+                navigator.geolocation.watchPosition(
+                    (position) => {
+                        userLocation = [position.coords.longitude, position.coords.latitude];
+                        updateUserMarker();
+                        if (navigationActive) {
+                            updateNavigation();
+                        }
+                    }
+                );
+            }
+        }
+
+        // Add user marker
+        function addUserMarker() {
+            if (map.getSource('user-location')) {
+                updateUserMarker();
+                return;
+            }
+
+            map.addSource('user-location', {
+                type: 'geojson',
+                data: {
+                    type: 'Feature',
+                    geometry: {
+                        type: 'Point',
+                        coordinates: userLocation
+                    }
+                }
+            });
+
+            map.addLayer({
+                id: 'user-location',
+                type: 'circle',
+                source: 'user-location',
+                paint: {
+                    'circle-radius': 10,
+                    'circle-color': '#8a2be2',
+                    'circle-stroke-width': 3,
+                    'circle-stroke-color': '#ffffff'
+                }
+            });
+        }
+
+        // Update user marker
+        function updateUserMarker() {
+            if (map.getSource('user-location')) {
+                map.getSource('user-location').setData({
+                    type: 'Feature',
+                    geometry: {
+                        type: 'Point',
+                        coordinates: userLocation
+                    }
+                });
+            }
+        }
+
+        // Search location
+        async function searchLocation() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) return;
+
+            showLoading();
+            try {
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`
+                );
+                const results = await response.json();
+                
+                displaySearchResults(results);
+            } catch (error) {
+                console.error('Search error:', error);
+                alert('Search failed. Please try again.');
+            }
+            hideLoading();
+        }
+
+        // Display search results
+        function displaySearchResults(results) {
+            const container = document.getElementById('searchResults');
+            container.innerHTML = '';
+
+            if (results.length === 0) {
+                container.innerHTML = '<div style="padding: 16px; text-align: center; color: #aaa;">No results found</div>';
+                container.classList.add('active');
+                return;
+            }
+
+            results.forEach(result => {
+                const div = document.createElement('div');
+                div.className = 'search-result';
+                div.innerHTML = `
+                    <div class="result-name">${result.display_name.split(',')[0]}</div>
+                    <div class="result-address">${result.display_name}</div>
+                `;
+                div.onclick = () => selectDestination(result);
+                container.appendChild(div);
+            });
+
+            container.classList.add('active');
+        }
+
+        // Select destination
+        async function selectDestination(result) {
+            destinationLocation = [parseFloat(result.lon), parseFloat(result.lat)];
+            
+            // Hide search results
+            document.getElementById('searchResults').classList.remove('active');
+            
+            // Add destination marker
+            if (map.getSource('destination')) {
+                map.getSource('destination').setData({
+                    type: 'Feature',
+                    geometry: {
+                        type: 'Point',
+                        coordinates: destinationLocation
+                    }
+                });
+            } else {
+                map.addSource('destination', {
+                    type: 'geojson',
+                    data: {
+                        type: 'Feature',
+                        geometry: {
+                            type: 'Point',
+                            coordinates: destinationLocation
+                        }
+                    }
+                });
+
+                map.addLayer({
+                    id: 'destination',
+                    type: 'circle',
+                    source: 'destination',
+                    paint: {
+                        'circle-radius': 12,
+                        'circle-color': '#ff0000',
+                        'circle-stroke-width': 3,
+                        'circle-stroke-color': '#ffffff'
+                    }
+                });
+            }
+
+            // Fetch route options
+            await fetchRoutes();
+        }
+
+        // Fetch routes
+        async function fetchRoutes() {
+            if (!userLocation || !destinationLocation) return;
+
+            showLoading();
+            try {
+                const response = await fetch(
+                    `https://router.project-osrm.org/route/v1/driving/${userLocation[0]},${userLocation[1]};${destinationLocation[0]},${destinationLocation[1]}?overview=full&geometries=geojson&alternatives=2&steps=true`
+                );
+                const data = await response.json();
+
+                if (data.routes && data.routes.length > 0) {
+                    displayRouteOptions(data.routes);
+                }
+            } catch (error) {
+                console.error('Routing error:', error);
+                alert('Failed to find route. Please try again.');
+            }
+            hideLoading();
+        }
+
+        // Display route options
+        function displayRouteOptions(routes) {
+            const container = document.getElementById('routeOptions');
+            container.innerHTML = '';
+
+            routes.forEach((route, index) => {
+                const div = document.createElement('div');
+                div.className = 'route-option' + (index === 0 ? ' selected' : '');
+                div.innerHTML = `
+                    <div class="route-duration">${Math.round(route.duration / 60)} min</div>
+                    <div class="route-distance">${(route.distance / 1000).toFixed(1)} km</div>
+                `;
+                div.onclick = () => selectRoute(route, div);
+                container.appendChild(div);
+            });
+
+            // Auto-select first route
+            selectRoute(routes[0], container.firstChild);
+            container.classList.add('active');
+        }
+
+        // Select route
+        function selectRoute(route, element) {
+            currentRoute = route;
+            currentStepIndex = 0;
+
+            // Update UI
+            document.querySelectorAll('.route-option').forEach(el => el.classList.remove('selected'));
+            if (element) element.classList.add('selected');
+
+            // Draw route on map
+            if (map.getSource('route')) {
+                map.getSource('route').setData(route.geometry);
+            } else {
+                map.addSource('route', {
+                    type: 'geojson',
+                    data: route.geometry
+                });
+
+                map.addLayer({
+                    id: 'route',
+                    type: 'line',
+                    source: 'route',
+                    paint: {
+                        'line-color': '#8a2be2',
+                        'line-width': 6,
+                        'line-opacity': 0.8
+                    }
+                });
+            }
+
+            // Fit map to route
+            const coordinates = route.geometry.coordinates;
+            const bounds = coordinates.reduce((bounds, coord) => {
+                return bounds.extend(coord);
+            }, new maplibregl.LngLatBounds(coordinates[0], coordinates[0]));
+
+            map.fitBounds(bounds, { padding: 80 });
+        }
+
+        // Load music
+        function loadMusic(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Update UI
+            document.getElementById('trackName').textContent = file.name;
+            document.getElementById('trackArtist').textContent = 'Local file';
+
+            // Create audio context
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            // Create audio element
+            if (audioElement) {
+                audioElement.pause();
+                audioElement.src = '';
+            }
+
+            audioElement = new Audio();
+            audioElement.src = URL.createObjectURL(file);
+            audioElement.loop = true;
+
+            // Create analyser
+            if (!audioSource) {
+                audioSource = audioContext.createMediaElementSource(audioElement);
+                analyser = audioContext.createAnalyser();
+                audioSource.connect(analyser);
+                analyser.connect(audioContext.destination);
+            }
+
+            // Detect BPM (simplified)
+            analyser.fftSize = 2048;
+            detectBPM();
+        }
+
+        // Detect BPM (simplified - uses basic beat detection)
+        function detectBPM() {
+            // For this demo, we'll use a default BPM that can be adjusted
+            // Real BPM detection would require more sophisticated analysis
+            bpm = 120; // Default
+            updateBPMDisplay();
+            
+            // Start beat visualization
+            startBeatVisualization();
+        }
+
+        // Update BPM display
+        function updateBPMDisplay() {
+            document.getElementById('bpmDisplay').textContent = bpm + ' BPM';
+        }
+
+        // Start beat visualization
+        function startBeatVisualization() {
+            if (beatInterval) clearInterval(beatInterval);
+            
+            const beatDuration = (60 / bpm) * 1000;
+            const indicator = document.querySelector('.beat-indicator');
+            
+            beatInterval = setInterval(() => {
+                indicator.style.animation = 'none';
+                setTimeout(() => {
+                    indicator.style.animation = `pulse ${beatDuration / 1000}s ease-in-out infinite`;
+                }, 10);
+            }, beatDuration);
+        }
+
+        // Start navigation
+        function startNavigation() {
+            if (!currentRoute) {
+                alert('Please select a destination first');
+                return;
+            }
+
+            if (!audioElement) {
+                alert('Please load music first');
+                return;
+            }
+
+            navigationActive = true;
+            audioElement.play();
+            
+            // Hide route options
+            document.getElementById('routeOptions').classList.remove('active');
+            
+            // Show first instruction
+            updateNavigation();
+        }
+
+        // Update navigation
+        function updateNavigation() {
+            if (!navigationActive || !currentRoute) return;
+
+            const steps = currentRoute.legs[0].steps;
+            if (currentStepIndex >= steps.length) {
+                // Navigation complete
+                navigationActive = false;
+                document.getElementById('navInstruction').classList.remove('active');
+                if (audioElement) audioElement.pause();
+                alert('You have arrived at your destination!');
+                return;
+            }
+
+            const currentStep = steps[currentStepIndex];
+            const distance = calculateDistance(userLocation, currentStep.maneuver.location);
+
+            // Update instruction display
+            const instructionIcon = getManeuverIcon(currentStep.maneuver.type);
+            document.getElementById('instructionIcon').textContent = instructionIcon;
+            document.getElementById('instructionText').textContent = currentStep.maneuver.instruction || 'Continue';
+            document.getElementById('instructionDistance').textContent = formatDistance(distance);
+            document.getElementById('navInstruction').classList.add('active');
+
+            // Synchronize voice guidance with beat
+            if (distance < 50) {
+                scheduleVoiceGuidance(currentStep.maneuver.instruction || 'Continue');
+                currentStepIndex++;
+            }
+        }
+
+        // Schedule voice guidance on beat
+        function scheduleVoiceGuidance(instruction) {
+            const beatDuration = (60 / bpm) * 1000;
+            
+            // Wait for next beat
+            setTimeout(() => {
+                speakInstruction(instruction);
+            }, beatDuration);
+        }
+
+        // Speak instruction
+        function speakInstruction(text) {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 1.0;
+                utterance.pitch = 1.0;
+                utterance.volume = 1.0;
+                speechSynthesis.speak(utterance);
+            }
+        }
+
+        // Get maneuver icon
+        function getManeuverIcon(type) {
+            const icons = {
+                'turn-right': '➡️',
+                'turn-left': '⬅️',
+                'sharp-right': '↗️',
+                'sharp-left': '↖️',
+                'slight-right': '➡️',
+                'slight-left': '⬅️',
+                'straight': '⬆️',
+                'uturn': '🔄',
+                'roundabout': '🔄',
+                'arrive': '🎯'
+            };
+            return icons[type] || '➡️';
+        }
+
+        // Format distance
+        function formatDistance(meters) {
+            if (meters < 1000) {
+                return `in ${Math.round(meters)}m`;
+            }
+            return `in ${(meters / 1000).toFixed(1)}km`;
+        }
+
+        // Calculate distance between two points
+        function calculateDistance(coord1, coord2) {
+            const R = 6371e3; // Earth radius in meters
+            const φ1 = coord1[1] * Math.PI / 180;
+            const φ2 = coord2[1] * Math.PI / 180;
+            const Δφ = (coord2[1] - coord1[1]) * Math.PI / 180;
+            const Δλ = (coord2[0] - coord1[0]) * Math.PI / 180;
+
+            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                    Math.cos(φ1) * Math.cos(φ2) *
+                    Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+            return R * c;
+        }
+
+        // Center on user
+        function centerOnUser() {
+            if (userLocation) {
+                map.setCenter(userLocation);
+                map.setZoom(16);
+            }
+        }
+
+        // Toggle nearby
+        async function toggleNearby() {
+            const panel = document.getElementById('nearbyPanel');
+            
+            if (panel.classList.contains('active')) {
+                panel.classList.remove('active');
+                return;
+            }
+
+            if (!userLocation) {
+                alert('Location not available');
+                return;
+            }
+
+            showLoading();
+            await fetchNearby();
+            hideLoading();
+            panel.classList.add('active');
+        }
+
+        // Fetch nearby places
+        async function fetchNearby() {
+            const categories = [
+                { name: 'Fuel', query: 'amenity=fuel' },
+                { name: 'Food', query: 'amenity=restaurant' },
+                { name: 'Hotels', query: 'tourism=hotel' },
+                { name: 'EV Charging', query: 'amenity=charging_station' }
+            ];
+
+            const panel = document.getElementById('nearbyPanel');
+            panel.innerHTML = '';
+
+            for (const category of categories) {
+                try {
+                    const bbox = [
+                        userLocation[1] - 0.05,
+                        userLocation[0] - 0.05,
+                        userLocation[1] + 0.05,
+                        userLocation[0] + 0.05
+                    ];
+
+                    const query = `
+                        [out:json];
+                        (
+                          node[${category.query}](${bbox.join(',')});
+                        );
+                        out body 10;
+                    `;
+
+                    const response = await fetch('https://overpass-api.de/api/interpreter', {
+                        method: 'POST',
+                        body: query
+                    });
+
+                    const data = await response.json();
+                    displayNearbyCategory(category.name, data.elements);
+                } catch (error) {
+                    console.error(`Error fetching ${category.name}:`, error);
+                }
+            }
+        }
+
+        // Display nearby category
+        function displayNearbyCategory(name, places) {
+            if (places.length === 0) return;
+
+            const panel = document.getElementById('nearbyPanel');
+            const categoryDiv = document.createElement('div');
+            categoryDiv.className = 'nearby-category';
+
+            const title = document.createElement('div');
+            title.className = 'category-title';
+            title.textContent = name;
+            categoryDiv.appendChild(title);
+
+            places.slice(0, 5).forEach(place => {
+                const div = document.createElement('div');
+                div.className = 'nearby-item';
+                
+                const distance = calculateDistance(userLocation, [place.lon, place.lat]);
+                
+                div.innerHTML = `
+                    <div class="nearby-name">${place.tags.name || 'Unnamed'}</div>
+                    <div class="nearby-distance">${(distance / 1000).toFixed(1)} km away</div>
+                `;
+                
+                div.onclick = () => {
+                    document.getElementById('searchInput').value = place.tags.name || 'Location';
+                    selectDestination({
+                        lon: place.lon,
+                        lat: place.lat,
+                        display_name: place.tags.name || 'Nearby location'
+                    });
+                    panel.classList.remove('active');
+                };
+                
+                categoryDiv.appendChild(div);
+            });
+
+            panel.appendChild(categoryDiv);
+        }
+
+        // Show/hide loading
+        function showLoading() {
+            document.getElementById('loading').classList.add('active');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').classList.remove('active');
+        }
+
+        // Initialize on load
+        window.addEventListener('load', initMap);
+
+        // Handle search on Enter
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                searchLocation();
+            }
+        });
+    </script>
+</body>
+</html>
